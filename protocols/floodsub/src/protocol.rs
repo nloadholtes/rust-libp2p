@@ -24,9 +24,11 @@ use futures::{
     io::{AsyncRead, AsyncWrite},
     AsyncWriteExt, Future,
 };
-use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo, UpgradeError};
+use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeError, UpgradeInfo};
 use prost::Message;
 use std::{error, fmt, io, iter, pin::Pin};
+
+pub const PROTOCOL_NAME: &[u8] = b"/floodsub/1.0.0";
 
 /// Implementation of `ConnectionUpgrade` for the floodsub protocol.
 #[derive(Debug, Clone, Default)]
@@ -44,7 +46,7 @@ impl UpgradeInfo for FloodsubProtocol {
     type InfoIter = iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(b"/floodsub/1.0.0")
+        iter::once(super::PROTOCOL_NAME)
     }
 }
 
@@ -154,7 +156,7 @@ impl UpgradeInfo for FloodsubRpc {
     type InfoIter = iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(b"/floodsub/1.0.0")
+        iter::once(super::PROTOCOL_NAME)
     }
 }
 
@@ -163,7 +165,7 @@ where
     TSocket: AsyncWrite + AsyncRead + Send + Unpin + 'static,
 {
     type Output = ();
-    type Error = UpgradeError; 
+    type Error = UpgradeError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
     fn upgrade_outbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
