@@ -24,7 +24,7 @@ use futures::{
     io::{AsyncRead, AsyncWrite},
     AsyncWriteExt, Future,
 };
-use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo};
+use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo, UpgradeError};
 use prost::Message;
 use std::{error, fmt, io, iter, pin::Pin};
 
@@ -53,8 +53,8 @@ where
     TSocket: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Output = FloodsubRpc;
-    type Error = FloodsubDecodeError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
+    type Error = UpgradeError;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Output, UpgradeError>> + Send>>;
 
     fn upgrade_inbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
         Box::pin(async move {
@@ -163,7 +163,7 @@ where
     TSocket: AsyncWrite + AsyncRead + Send + Unpin + 'static,
 {
     type Output = ();
-    type Error = io::Error;
+    type Error = UpgradeError; 
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
     fn upgrade_outbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
