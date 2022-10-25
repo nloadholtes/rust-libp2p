@@ -46,7 +46,7 @@ impl UpgradeInfo for FloodsubProtocol {
     type InfoIter = iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(super::PROTOCOL_NAME)
+        iter::once(PROTOCOL_NAME)
     }
 }
 
@@ -55,8 +55,8 @@ where
     TSocket: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Output = FloodsubRpc;
-    type Error = UpgradeError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Output, UpgradeError>> + Send>>;
+    type Error = FloodsubDecodeError;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
     fn upgrade_inbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
         Box::pin(async move {
@@ -156,7 +156,7 @@ impl UpgradeInfo for FloodsubRpc {
     type InfoIter = iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(super::PROTOCOL_NAME)
+        iter::once(PROTOCOL_NAME)
     }
 }
 
@@ -165,7 +165,7 @@ where
     TSocket: AsyncWrite + AsyncRead + Send + Unpin + 'static,
 {
     type Output = ();
-    type Error = UpgradeError;
+    type Error = io::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
     fn upgrade_outbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
