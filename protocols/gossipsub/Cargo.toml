@@ -13,6 +13,7 @@ categories = ["network-programming", "asynchronous"]
 [dependencies]
 libp2p-swarm = { version = "0.40.0", path = "../../swarm" }
 libp2p-core = { version = "0.37.0", path = "../../core" }
+prost-codec = { version = "0.2", path = "../../misc/prost-codec" }
 bytes = "1.0"
 byteorder = "1.3.4"
 fnv = "1.0.7"
