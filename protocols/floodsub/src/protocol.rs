@@ -20,6 +20,8 @@
 
 use crate::rpc_proto;
 use crate::topic::Topic;
+use asynchronous_codec::Framed;
+use futures::StreamExt;
 use futures::{
     io::{AsyncRead, AsyncWrite},
     AsyncWriteExt, Future,
@@ -27,6 +29,8 @@ use futures::{
 use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo};
 use prost::Message;
 use std::{io, iter, pin::Pin};
+
+const MAX_MESSAGE_LEN_BYTES: usize = 2048;
 
 /// Implementation of `ConnectionUpgrade` for the floodsub protocol.
 #[derive(Debug, Clone, Default)]
@@ -56,10 +60,18 @@ where
     type Error = FloodsubDecodeError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
-    fn upgrade_inbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
+    fn upgrade_inbound(self, socket: TSocket, _: Self::Info) -> Self::Future {
         Box::pin(async move {
-            let packet = upgrade::read_length_prefixed(&mut socket, 2048).await?;
-            let rpc = rpc_proto::Rpc::decode(&packet[..]).map_err(DecodeError)?;
+            let mut framed = Framed::<TSocket, prost_codec::Codec<rpc_proto::Rpc>>::new(
+                socket,
+                prost_codec::Codec::new(MAX_MESSAGE_LEN_BYTES),
+            );
+
+            let rpc = framed
+                .next()
+                .await
+                .ok_or_else(|| FloodsubDecodeError::ReadError(io::ErrorKind::UnexpectedEof.into()))?
+                .map_err(DecodeError)?;
 
             let mut messages = Vec::with_capacity(rpc.publish.len());
             for publish in rpc.publish.into_iter() {
@@ -107,7 +119,7 @@ pub enum FloodsubDecodeError {
 
 #[derive(thiserror::Error, Debug)]
 #[error(transparent)]
-pub struct DecodeError(prost::DecodeError);
+pub struct DecodeError(prost_codec::Error);
 
 /// An RPC received by the floodsub system.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
