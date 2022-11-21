@@ -20,6 +20,7 @@
 
 use crate::rpc_proto;
 use crate::topic::Topic;
+use asynchronous_codec::{BytesMut, Decoder, Encoder};
 use futures::{
     io::{AsyncRead, AsyncWrite},
     AsyncWriteExt, Future,
@@ -27,6 +28,8 @@ use futures::{
 use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo};
 use prost::Message;
 use std::{io, iter, pin::Pin};
+
+const MAX_MESSAGE_LEN_BYTES: usize = 2048;
 
 /// Implementation of `ConnectionUpgrade` for the floodsub protocol.
 #[derive(Debug, Clone, Default)]
@@ -108,6 +111,47 @@ pub enum FloodsubDecodeError {
 #[derive(thiserror::Error, Debug)]
 #[error(transparent)]
 pub struct DecodeError(prost::DecodeError);
+
+// Codec for framing
+pub struct FloodsubCodec {
+    codec: prost_codec::Codec<rpc_proto::Rpc>,
+}
+
+impl FloodsubCodec {
+    pub fn new() -> FloodsubCodec {
+        FloodsubCodec {
+            codec: prost_codec::Codec::new(MAX_MESSAGE_LEN_BYTES),
+        }
+    }
+}
+impl Decoder for FloodsubCodec {
+    type Item = FloodsubMessage;
+    type Error = FloodsubDecodeError;
+
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, FloodsubDecodeError> {
+        let rpc = match self.codec.decode(src)? {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+        let mut messages = Vec::with_capacity(rpc.encoded_len());
+        for publish in rpc.publish.into_iter() {
+            messages.push(FloodsubMessage {
+                source: todo!(),
+                data: publish.data.unwrap_or_default(),
+                sequence_number: todo!(),
+                topics: todo!(),
+            })
+        }
+
+        let output = FloodsubMessage {
+            source: todo!(),
+            data: rpc.publish,
+            sequence_number: todo!(),
+            topics: todo!(),
+        };
+        return Ok(Some(output));
+    }
+}
 
 /// An RPC received by the floodsub system.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
