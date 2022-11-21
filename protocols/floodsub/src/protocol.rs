@@ -143,6 +143,7 @@ impl Decoder for FloodsubCodec {
             })
         }
 
+        // This probably needs to be removed in favor of the previous block
         let output = FloodsubMessage {
             source: todo!(),
             data: rpc.publish,
