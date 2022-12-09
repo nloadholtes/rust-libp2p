@@ -21,16 +21,18 @@
 use crate::rpc_proto;
 use crate::topic::Topic;
 use asynchronous_codec::Framed;
-use futures::StreamExt;
 use futures::{
     io::{AsyncRead, AsyncWrite},
-    AsyncWriteExt, Future,
+    Future,
 };
-use libp2p_core::{upgrade, InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo};
+use futures::{SinkExt, StreamExt};
+use libp2p_core::{InboundUpgrade, OutboundUpgrade, PeerId, UpgradeInfo};
 use prost::Message;
 use std::{io, iter, pin::Pin};
 
 const MAX_MESSAGE_LEN_BYTES: usize = 2048;
+
+const PROTOCOL_NAME: &[u8] = b"/floodsub/1.0.0";
 
 /// Implementation of `ConnectionUpgrade` for the floodsub protocol.
 #[derive(Debug, Clone, Default)]
@@ -48,7 +50,7 @@ impl UpgradeInfo for FloodsubProtocol {
     type InfoIter = iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(b"/floodsub/1.0.0")
+        iter::once(PROTOCOL_NAME)
     }
 }
 
@@ -135,7 +137,7 @@ impl UpgradeInfo for FloodsubRpc {
     type InfoIter = iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(b"/floodsub/1.0.0")
+        iter::once(PROTOCOL_NAME)
     }
 }
 
@@ -151,8 +153,9 @@ where
         Box::pin(async move {
             let bytes = self.into_bytes();
 
-            upgrade::write_length_prefixed(&mut socket, bytes).await?;
-            socket.close().await?;
+            let mut framed = Framed::new(socket, prost_codec::Codec::new(MAX_MESSAGE_LEN_BYTES));
+            framed.send(bytes).await?; // If this is needed, then map_err() here
+            framed.close().await?; // If this is needed, then map_err() here
 
             Ok(())
         })
