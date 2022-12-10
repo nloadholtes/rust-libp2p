@@ -149,14 +149,22 @@ where
     type Error = io::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
-    fn upgrade_outbound(self, mut socket: TSocket, _: Self::Info) -> Self::Future {
+    fn upgrade_outbound(self, socket: TSocket, _: Self::Info) -> Self::Future {
         Box::pin(async move {
             let bytes = self.into_bytes();
 
-            let mut framed = Framed::new(socket, prost_codec::Codec::new(MAX_MESSAGE_LEN_BYTES));
-            framed.send(bytes).await?; // If this is needed, then map_err() here
-            framed.close().await?; // If this is needed, then map_err() here
-
+            let mut framed = Framed::new(
+                socket,
+                prost_codec::Codec::<std::vec::Vec<u8>>::new(MAX_MESSAGE_LEN_BYTES),
+            );
+            framed
+                .send(bytes)
+                .await
+                .map_err(|e| io::Error::new(std::io::ErrorKind::ConnectionRefused, e))?;
+            framed
+                .close()
+                .await
+                .map_err(|e| io::Error::new(std::io::ErrorKind::ConnectionReset, e))?;
             Ok(())
         })
     }
