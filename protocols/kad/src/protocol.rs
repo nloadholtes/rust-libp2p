@@ -199,7 +199,7 @@ where
 
         future::ok(
             Framed::new(incoming, codec)
-                .err_into()
+                .next()
                 .with::<_, _, fn(_) -> _, _>(|response| {
                     let proto_struct = resp_msg_to_proto(response);
                     let mut buf = Vec::with_capacity(proto_struct.encoded_len());
