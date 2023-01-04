@@ -195,8 +195,7 @@ where
     type Error = io::Error;
 
     fn upgrade_inbound(self, incoming: C, _: Self::Info) -> Self::Future {
-        let mut codec = UviBytes::default();
-        codec.set_max_len(self.max_packet_size);
+        let mut codec = prost_codec::Codec::<proto::Message>::new(self.max_packet_size);
 
         future::ok(
             Framed::new(incoming, codec)
